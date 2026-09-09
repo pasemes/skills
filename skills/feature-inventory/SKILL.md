@@ -13,32 +13,7 @@ compatibility: Works with any skills-compatible agent (Claude Code, Cursor, Copi
 license: MIT
 metadata:
   author: yashasvigirdhar
-  version: "1.0"
-  upstream_url: https://github.com/yashasvigirdhar/skills/tree/main/feature-inventory
-  upstream_commit: 3960a540631bad1c7f32161df59d8c3c3b100ca5
-  upstream_commit_date: 2026-04-20
-  upstream_license: MIT (c) 2026 Yashasvi Girdhar
-  forked_on: 2026-09-09
-  forked_by: pasemes
-  fork_reason: >-
-    Availability, not customization. An upstream that is deleted or made private
-    otherwise takes the whole toolchain with it, and this skill is the one every
-    other piece of the Fito guide tooling depends on.
-  fork_changes: >-
-    One change from upstream: the `## Accumulated Learnings` section and the two
-    pointers to it (`Before You Start` item 5, `After the Run` item 2) are
-    removed. Run history has one home, `runs.log`, and the consuming project has
-    another for what outlives a run; a third inside the skill file only drifts.
-    Everything else is byte-identical to the commit above.
-  provenance_gap: >-
-    The inventory this fork's own consumer runs against was bootstrapped on
-    2026-09-07 by a user-level install with no recorded provenance — no manifest
-    entry in a lockfile or installer directory, and no VCS metadata in its
-    directory. That install's metadata is gone. Its content is not: all four of
-    its files were byte-identical to the commit above apart from the removed
-    section, and no upstream commit had touched this skill since 2026-04-20. So
-    the code is identified by content rather than by record, and the record is
-    the part that is missing.
+  version: "1.0"  
 ---
 
 # Feature Inventory — Create & Maintain
