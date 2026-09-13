@@ -66,13 +66,13 @@ Bootstrap builds content, not the site. The scaffold, the branding and the site 
 
 ## Sync
 
-1. Run `feature-inventory` in drift-sync mode **through its Step 3, the proposed diff, and no further**. Its Step 4 commits, pushes or opens a pull request; sync applies the diff to `inventory` in the working tree instead, so the inventory change and the pages it needs land in one commit. A new entry's `docs_pages` names the page that will document it: an existing page when its reader task already covers the feature, a new path otherwise.
+1. Run `feature-inventory` in drift-sync mode **through its Step 3, the proposed diff, and no further**. Its Step 4 commits, pushes or opens a pull request; sync applies the diff to `inventory` in the working tree instead, so the inventory change and the pages it needs land in one commit. Leave a new entry's `docs_pages` empty. The coverage check then reports it as a feature with no page, and the ledger decides where it is documented.
    **Done when:** the inventory in the working tree matches the code, and the diff is kept for the report.
 2. Run every command in `checks`. Sort every failure line into the **ledger**, one row per failure, by kind:
 
    | Kind | The failure reads | The repair |
    |---|---|---|
-   | New feature with no page | `docs_pages is blank`, or a listed page `has no English page` | Write the page, or list the feature on a page that already covers its reader task |
+   | New feature with no page | `docs_pages is blank`, or a listed page `has no English page` | Name its page in `docs_pages` — an existing page when that page's reader task already covers the feature, a new path otherwise — and write the feature onto that page, in both locales |
    | Page for a deleted feature | `no feature lists this page, and it carries no noFeature marker` | Delete the pair and its registration; list it under a surviving feature; or mark it when it still serves a reader. The row says which, and why |
    | Translation drift | `has no pt-BR page`, `the pt-BR twin …`, or `the English page changed after the pt-BR twin was translated` | Bring the twin up to date from the English page, then stamp it |
    | Stale command or flag | `is not a command`, `matches no command`, `appears nowhere in the TUI source`, or a reference-table diff in the tests | Improve every page that names it, in both locales |
