@@ -1,99 +1,86 @@
-# Fito guide maintenance — Setup guide
+# Fito Guide Maintenance — Setup Guide
 
-You are setting up `fito-guide-maintenance` for a Fito authoring checkout. It
-builds or reconciles the bilingual user guide from Fito's feature inventory. It
-runs on the author's machine against the repository; it is not installed into
-`tui/` and does not ship to learners.
+You are setting up the `fito-guide-maintenance` skill in a Fito checkout. This skill keeps Fito's bilingual user guide true to the product: it writes the pages a feature is owed, keeps every pt-BR twin a current translation of its English page, and settles the pages a deleted feature left behind. The guide's own checks decide when a run is done.
 
-It has two explicit modes: `bootstrap` creates guide content against the current
-inventory, and `sync` reconciles inventory, guide pages, translations, commands,
-and flags after product changes.
+It serves one repository, Fito, and runs on an author's machine. It is not part of the TUI a learner installs.
+
+It runs in one of two modes, and **the invocation names the mode**. Step 3 is where that matters.
 
 Follow these steps in order.
 
-## Step 1: Prerequisites check
+## Step 1: Prerequisites Check
 
-1. **A Fito repository checkout** — the skill reads `guide/`, `tui/`,
-   `guide/feature-inventory.yaml`, and the repository's authoring rules. It has no
-   useful standalone mode.
-2. **Node.js 24 and guide dependencies** — run `npm ci` in `guide/` before the
-   build and test verification step.
-3. **`feature-inventory` installed from the same skills repository** — it is the
-   required first step of `sync` and owns inventory drift. Install it from
-   [its setup guide](https://github.com/pasemes/skills/blob/main/skills/feature-inventory/SETUP.md),
-   using `https://raw.githubusercontent.com/pasemes/skills/main/skills/feature-inventory`
-   as its install base.
-4. **`technical-documentation` installed from the same repository** — it writes
-   and improves guide prose. Install it from
-   [its setup guide](https://github.com/pasemes/skills/blob/main/skills/technical-documentation/SETUP.md).
-5. **A clean disposable copy for seeded checks** — verification deliberately
-   creates missing pages and stale command usage. Never seed those changes in the
-   authoring checkout.
+1. **A Fito checkout** — the skill edits `guide/` and reads the product source the pages describe.
+2. **Node.js 24 and the guide's dependencies** — run `npm ci` in `guide/`. Every run ends by building the guide and running its tests.
+3. **`feature-inventory`**, installed from [its setup guide](https://github.com/pasemes/skills/blob/main/skills/feature-inventory/SETUP.md), with Fito's `config.json` beside it. Sync starts with its drift-sync.
+4. **`technical-documentation`**, installed from [its setup guide](https://github.com/pasemes/skills/blob/main/skills/technical-documentation/SETUP.md). It writes every page this skill decides on.
+5. **Tooling** — nothing beyond those. No API keys, no external accounts, and no `gh`: the skill commits nothing and opens nothing.
 
-The skill writes guide content and configuration that makes pages reachable. It
-leaves Fito's branding and one-time Astro scaffold alone.
+The skill writes guide pages, their frontmatter, and the files that register a page with the site. It reads product source and leaves it unchanged.
 
-## Step 2: Install the skill
+## Step 2: Install the Skill
 
-Fetch the two files into the directory your agent scans for skills. Common
-locations are `<PROJECT_ROOT>/.claude/skills/fito-guide-maintenance/` for one
-project and `~/.claude/skills/fito-guide-maintenance/` for every project.
+Fetch the two files into the checkout's skill directory. In Fito that is `.agents/skills/fito-guide-maintenance/`, beside the other two skills:
 
 ```bash
 BASE=https://raw.githubusercontent.com/pasemes/skills/main/skills/fito-guide-maintenance
-INSTALL=<install_path>
+INSTALL=<fito_checkout>/.agents/skills/fito-guide-maintenance
 
 mkdir -p "$INSTALL"
 curl -fsSL "$BASE/SKILL.md" -o "$INSTALL/SKILL.md"
 curl -fsSL "$BASE/SETUP.md" -o "$INSTALL/SETUP.md"
 ```
 
-Verify both files landed:
+Verify both landed:
 
 ```bash
-find "$INSTALL" -maxdepth 1 -name '*.md' -print | sort
+find "$INSTALL" -name '*.md' | sort
 ```
 
-Keep the directory named `fito-guide-maintenance`: it matches the `name` in the
-skill frontmatter. This is a user-invoked skill, so start it explicitly rather
-than expecting ordinary guide edits to load it.
+pi reads skills from `.agents/skills/` directly. Claude Code reads `.claude/skills/`, so link the folder there:
 
-## Step 3: First run
-
-Choose one mode explicitly:
-
-| Mode | When to use it | First action |
-|---|---|---|
-| `bootstrap` | The guide needs content built from the inventory. | Read the inventory and propose a page map. |
-| `sync` | Product or inventory changes may have made the existing guide stale. | Run `feature-inventory` drift-sync. |
-
-Start a session in the Fito repository and invoke one of:
-
-```text
-/fito-guide-maintenance bootstrap
-/fito-guide-maintenance sync
+```bash
+ln -s ../../.agents/skills/fito-guide-maintenance <fito_checkout>/.claude/skills/fito-guide-maintenance
 ```
 
-A `bootstrap` run never scaffolds or rebrands the Astro site. A `sync` run starts
-with `feature-inventory`, then reports each new-feature, deleted-feature page,
-translation, and command-or-flag drift before it repairs guide content.
+Keep the directory named `fito-guide-maintenance`: the `name` in the `SKILL.md` frontmatter has to match it.
 
-Both modes delegate prose to `technical-documentation`. Pass that skill an
-explicit mode (`write` for a new page or `improve` for an existing page), document
-type, audience, and verified source paths. Ask it to write English and pt-BR from
-the same facts, then pair-review the two results under `guide/STYLE.md`.
+**The skill is user-invoked.** Its frontmatter sets `disable-model-invocation: true`, so only a person typing its name starts it. It is available in the next session.
 
-## Step 4: Review the output
+## Step 3: First Run
 
-Review these parts before accepting a run:
+**The skill reads every path and command from `config.json` in its own folder, and stops without it.** Fito versions that file at `.agents/skills/fito-guide-maintenance/config.json`, so a fresh checkout already has it, and the install above leaves it in place. Write one only when it is missing, with these keys:
 
-- **The drift ledger** — every product change should name its source, affected
-  English/pt-BR paths, and repair. An unowned page after feature removal needs an
-  explicit retain, repurpose, or delete decision.
-- **The translation pair review** — an English change with no updated pt-BR twin
-  is a failure, not a warning. Check that the two pages teach the same task and
-  leave commands, flags, paths, identifiers, fields, and quoted UI labels literal.
-- **The verification output** — `check-feature-coverage.mjs`,
-  `derive-reference-tables.mjs`, the guide build, and guide tests must all be
-  green. For a first install, also review the four disposable seeded drifts and
-  the bootstrap restoration check described in `SKILL.md`.
+| Key | What it holds |
+|---|---|
+| `inventory` | The feature inventory: `guide/feature-inventory.yaml` |
+| `docs_root` | Where pages live: `guide/src/content/docs` |
+| `twin_locale` | The twin's folder under `docs_root`, and its language |
+| `style_guide` | The house style, translation rules included: `guide/STYLE.md` |
+| `registration` | The files a page added, moved or deleted also edits: the sidebar config and the page-list test |
+| `markers.no_feature` | The frontmatter line an English page no feature lists carries |
+| `stamp` | The command that records a twin as current, with `<page>` standing for the page path |
+| `checks` | The commands that decide green, in the order they run |
+| `type_folders` | Each type folder in a page path, mapped to a `technical-documentation` document type |
+| `root_pages` | Pages outside the `<topic>/<type>/<page>` shape, each with its topic and type |
+| `topic_readers` | The reader and level for each topic |
+| `fact_sources` | `authority`, cited as fact, and `context_only`, read as background only |
+
+Ask the user: "Want me to run it now? Tell me the mode: `bootstrap` to write the pages the guide is missing, or `sync` to reconcile the guide after the product changed."
+
+| Mode | Use it when | Claude Code | pi |
+|---|---|---|---|
+| `bootstrap` | Pages the inventory or the sidebar name do not exist yet | `/fito-guide-maintenance bootstrap` | `/skill:fito-guide-maintenance bootstrap` |
+| `sync` | The product moved since the guide was last green | `/fito-guide-maintenance sync` | `/skill:fito-guide-maintenance sync` |
+
+**Sync stops `feature-inventory` at its proposed diff.** With `auto_commit: false` and `gh` installed, that skill's next step pushes a branch and opens a pull request. Sync applies the diff to the working tree instead, because the coverage check fails on an inventory change that lands without its pages.
+
+**Neither mode commits.** The working tree holds the result.
+
+## Step 4: Reviewing the Output
+
+Point the user at the three places where their judgement is actually needed:
+
+- **The `Result` line, first.** `green` means every check exited 0; `FAIL` names what is still standing. A stale translation is a failure, never a warning: a pt-BR page that no longer says what its English page says is confidently wrong.
+- **The pt-BR review list.** It names every twin the run wrote or changed. Read each against its English page before committing. The stamp on a twin claims the translation is current, and this read is what backs the claim.
+- **Every ledger row for a page left by a deleted feature.** The run deletes the page, lists it under another feature, or keeps it as a page with no feature, and writes down why. That call changes what readers can find, so confirm it.

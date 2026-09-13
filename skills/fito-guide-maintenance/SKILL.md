@@ -1,135 +1,97 @@
 ---
 name: fito-guide-maintenance
-description: Bootstrap or synchronize Fito's bilingual guide from its feature inventory.
+description: Bootstrap or sync Fito's bilingual user guide against its feature inventory.
 disable-model-invocation: true
 ---
 
-# Fito guide maintenance
+# Fito Guide Maintenance
 
-This is **author-side tooling**. It runs against the Fito repository and maintains
-`guide/`; it is not a `tui/` artifact and never ships with the learner-facing TUI.
+Keeps Fito's user guide true to the product. Every feature in the inventory has a page, every English page has a pt-BR **twin**, and every twin is a current translation of its English page.
 
-Run it explicitly with one required mode:
+This is author-side tooling. It runs on an author's machine, against a Fito checkout, and edits `guide/`. It is not a `tui/` artifact: the `fito-` prefix names the project, and the skill stays out of `tui/`.
 
-```text
-/fito-guide-maintenance bootstrap
-/fito-guide-maintenance sync
-```
+**Green** decides every run. The guide carries its own checks, listed under `checks` in `config.json`, and green means every one of them exits 0. The checks decide what counts as drift and when the work is done. This skill decides what to write, where, and in what order; `technical-documentation` writes it. A run ends green, or it ends **FAIL** and names every failure still standing.
 
-`bootstrap` creates guide content from the current inventory. `sync` reconciles a
-guide that already exists. Do not infer a mode from the files on disk: an existing
-partial guide is still a bootstrap request when the author says `bootstrap`.
+The translation question has one answer, and this skill holds it:
 
-## Before either mode
+- **Who writes pt-BR:** this run, through `technical-documentation`, in the same run as the English page.
+- **Who reviews it:** the author, from the report's pt-BR review list, before committing.
+- **An English change the twin never followed:** a check failure. The run is FAIL, not green with a warning.
 
-1. Confirm that this is the Fito repository and read `AGENTS.md`, `guide/STYLE.md`,
-   `guide/feature-inventory.yaml`, and
-   `.agents/skills/feature-inventory/config.json`.
-2. Confirm the two dependencies are available from
-   `https://github.com/pasemes/skills`:
-   - `feature-inventory` maintains the inventory.
-   - `technical-documentation` writes and improves the prose.
-3. Record the starting Git status. Preserve unrelated changes. Work in a disposable
-   copy when validating a destructive or seeded scenario.
-4. Treat the inventory, the guide source tree, and the feature-coverage check as
-   three views of one contract. A clean Astro build alone is not evidence that they
-   agree.
+## Before Either Mode
+
+1. Read `config.json` in this skill's folder. When it is missing, stop and point the author to Step 3 of `SETUP.md`. Every path and command below is a key in that file.
+2. Confirm `feature-inventory` and `technical-documentation` are both loaded. When one is missing, stop and name its `SETUP.md`.
+3. Take the mode from the invocation: `bootstrap` or `sync`. It has no default; when the invocation names neither, ask.
+4. Run `git status` and keep its output. Leave every change you did not make as you found it.
+
+**Done when:** the config is read, both skills are loaded, and the mode is known.
+
+## Writing a Page
+
+Every page and every twin is written by `technical-documentation`. This skill passes it the values below and reads what comes back.
+
+**The English page.** A page path has the shape `<topic>/<type>/<page>`; a page outside that shape is named in `root_pages` with its topic and type. Pass:
+
+| Value | Where it comes from |
+|---|---|
+| Mode | `write` when the file does not exist, `improve` when it does |
+| Document type | `type_folders[<type>]` |
+| Reader and level | The `personas` of every feature whose `docs_pages` lists the page, read with `topic_readers[<topic>]`; for a page no feature lists, `topic_readers[<topic>]` alone |
+| Fact sources | Each listing feature's `api_endpoints`, `frontend_routes`, `tui_commands` and `test_file`, the source files behind them, and `fact_sources.authority`. `fact_sources.context_only` is background and is never cited |
+| Local style guide | `style_guide` |
+
+**The twin.** Pass the same mode rule, type, reader and facts, the finished English page as the source text, and an explicit request to translate it into the `twin_locale` language under the translation rules of `style_guide`. The request has to be explicit: `technical-documentation` translates only when asked.
+
+**Stamp the twin after reading it against the English page, section by section.** Run `stamp` with the page path. The stamp records that the twin is current, and nothing else checks that claim.
+
+**Register the page.** A page added, moved or deleted is also an edit to every file in `registration`. Each file's own comments say how.
+
+**Mark the page.** An English page no feature lists carries `markers.no_feature` in its frontmatter. A page a feature lists carries none.
+
+**Done when:** the English page, its twin, the stamp, the marker where one is owed, and every registration edit all exist.
 
 ## Bootstrap
 
-Bootstrap builds **content**, not the site. The existing guide scaffold owns its
-branding, Astro configuration, integrations, and npm setup.
+Bootstrap builds content, not the site. The scaffold, the branding and the site settings stay as they are.
 
-1. Read the inventory and group its features into reader tasks. For every proposed
-   page, state its audience, document type, source paths, English path, and pt-BR
-   path. Reuse a page when its reader task is shared; do not create one page per
-   feature by default.
-2. Reconcile the proposed page paths with `docs_pages` in the inventory, the sidebar
-   in `guide/astro.config.mjs`, and the page loop in
-   `guide/test/build-output.test.mjs`. A new topic whose first page has a new
-   document type also updates that test's type-heading expectation.
-3. Delegate prose to `technical-documentation`; do not reproduce its writing rules.
-   For each English page, pass `write`, its document type, audience, and verified
-   source paths. Then pass the same facts, the English page, and `guide/STYLE.md`
-   to write the pt-BR twin. The guide-maintenance skill decides the page map and
-   hands off facts; the writing skill owns the prose.
-4. Pair-review the two files before proceeding. Check that they teach the same task,
-   prerequisites, steps, results, warnings, links, and literal commands, flags,
-   paths, identifiers, fields, and quoted UI labels. Apply the pt-BR rules in
-   `guide/STYLE.md` rather than translating literals.
-5. Run the checks in [Verification](#verification). Bootstrap is complete only when
-   every inventory feature has a page, every page has a twin, and the built guide
-   contains the intended new sections.
+1. List every page the guide owes: every path in `docs_pages` across `inventory`, and every page the files in `registration` name. For each, record whether its English file and its twin exist under `docs_root`.
+   **Done when:** every listed page has a present-or-missing mark for each locale.
+2. Order the missing pages. The build fails on an internal link to a page that does not exist yet, so a page is written after the pages it links to. Pages that link in a circle are written together, in one pass.
+   **Done when:** every missing page has a place in the order.
+3. Write each missing page, in that order, through [Writing a Page](#writing-a-page). A page whose English file exists and whose twin is missing gets the twin only.
+   **Done when:** every listed page exists in both locales.
+4. Run every command in `checks`, in order. Repair each failure through [Writing a Page](#writing-a-page), and run them again.
+   **Done when:** the run is green — or a failure has no repair this skill can make, and the run is FAIL.
 
 ## Sync
 
-Sync starts with product drift, then repairs guide drift. Run
-`feature-inventory`'s drift-sync first and retain its added, removed, and changed
-entries as the input to this mode.
+1. Run `feature-inventory` in drift-sync mode **through its Step 3, the proposed diff, and no further**. Its Step 4 commits, pushes or opens a pull request; sync applies the diff to `inventory` in the working tree instead, so the inventory change and the pages it needs land in one commit. A new entry's `docs_pages` names the page that will document it: an existing page when its reader task already covers the feature, a new path otherwise.
+   **Done when:** the inventory in the working tree matches the code, and the diff is kept for the report.
+2. Run every command in `checks`. Sort every failure line into the **ledger**, one row per failure, by kind:
 
-### Detect the four drifts
+   | Kind | The failure reads | The repair |
+   |---|---|---|
+   | New feature with no page | `docs_pages is blank`, or a listed page `has no English page` | Write the page, or list the feature on a page that already covers its reader task |
+   | Page for a deleted feature | `no feature lists this page, and it carries no noFeature marker` | Delete the pair and its registration; list it under a surviving feature; or mark it when it still serves a reader. The row says which, and why |
+   | Translation drift | `has no pt-BR page`, `the pt-BR twin …`, or `the English page changed after the pt-BR twin was translated` | Bring the twin up to date from the English page, then stamp it |
+   | Stale command or flag | `is not a command`, `matches no command`, `appears nowhere in the TUI source`, or a reference-table diff in the tests | Improve every page that names it, in both locales |
 
-Build a drift ledger before writing. Each row names the source change, affected
-English and pt-BR paths, the required repair, and whether it blocks the run.
+   Any other failure — a broken link, a build error, a failing test — is a row of its own, named as it reads.
+   **Done when:** every failure line from every check is exactly one ledger row.
+3. Repair the ledger row by row, through [Writing a Page](#writing-a-page). An English edit makes its twin stale by construction, so every English page you touch sends its twin through the twin half of that section too.
+   **Done when:** every row carries its repair.
+4. Run every command in `checks`, in order. A new failure becomes a new row and returns to step 3.
+   **Done when:** the run is green — or a row has no repair this skill can make, and the run is FAIL.
 
-1. **New feature with no page.** A feature added by inventory drift-sync without a
-   non-empty `docs_pages` entry, or pointing to a non-existent page pair, blocks.
-   Add or revise the page map, then write both locales.
-2. **Page for a deleted feature.** Compare the removed feature's old `docs_pages`
-   with the current inventory. A page no remaining feature owns is a reconciliation
-   item: delete it, repurpose it, or explicitly retain it as a non-feature page.
-   Do not silently delete a page that still serves a reader task.
-3. **English page without a Portuguese twin.** Run
-   `node guide/scripts/check-feature-coverage.mjs`. Any missing twin blocks. It is
-   also a failure when the Git diff changes an English page's content but does not
-   change its matching `pt-br/` file in the same repair; write and pair-review the
-   translation before continuing.
-4. **Stale command or flag.** Run
-   `node guide/scripts/derive-reference-tables.mjs`. Its command-usage diff derives
-   names and `argument-hint` values from `tui/prompts/`, so a changed command or
-   flag blocks until both reference pages are reconciled. For prose outside its
-   tables, read the changed source and every page that cites the affected literal.
+## Report
 
-The translation rule is a **failure**, never a warning. A stale translation teaches
-an old product confidently; leave the sync red until the pair review is complete.
+End both modes with this report, in this order:
 
-### Repair in order
+1. **Result:** `green` or `FAIL`. A translation failure still standing makes the run FAIL.
+2. **Inventory diff** (sync only): the added, removed and changed entries from step 1.
+3. **Ledger:** each row's kind, failure, repair, and the files it touched. For a page left by a deleted feature, the decision and its reason.
+4. **pt-BR review list:** every twin this run wrote or changed, for the author to read against its English page before committing.
+5. **Checks:** the final summary line of each command in `checks`.
 
-1. Reconcile page ownership and `docs_pages` mappings.
-2. Delegate new English pages with `technical-documentation` in `write` mode; use
-   `improve` for an existing page. Always pass its document type, audience, source
-   paths, and `guide/STYLE.md`.
-3. Write or improve the pt-BR twin from the same verified facts, then pair-review
-   it against the English result.
-4. Update the sidebar and build-output page list for every page added, removed, or
-   moved. Keep a page's path locale-free in the inventory.
-5. Re-run the ledger and all verification commands. Do not call the sync complete
-   while any row remains unresolved.
-
-## Verification
-
-Run these from the repository root unless a command changes directory:
-
-```bash
-cd guide && npm run build && npm test
-node guide/scripts/check-feature-coverage.mjs
-node guide/scripts/derive-reference-tables.mjs
-```
-
-For a bootstrap, remove one generated section from a disposable copy, run the
-bootstrap workflow against the same inventory, and compare the restored English
-and pt-BR sections to the removed sections for reader task, factual coverage, and
-literal interface tokens.
-
-For a sync, seed each of these changes in a disposable copy and confirm the drift
-ledger identifies it before repair:
-
-- add an inventory feature with no valid page pair;
-- remove a feature while leaving its formerly owned page pair;
-- remove one pt-BR page, then separately change English content without changing
-  its twin;
-- change a TUI prompt's `argument-hint` without updating the command reference.
-
-Restore the disposable copy after every seed. Report each seed, the blocking
-message, the repair, and the clean rerun. The skill is complete only after all four
-classes are demonstrated and the unmodified repository is green.
+The run leaves its result in the working tree, uncommitted. The author commits it.
