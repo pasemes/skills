@@ -16,8 +16,8 @@ Follow these steps in order.
 1. **A Fito repository checkout** — the skill reads `guide/`, `tui/`,
    `guide/feature-inventory.yaml`, and the repository's authoring rules. It has no
    useful standalone mode.
-2. **Node.js 24 and guide dependencies** — run `npm install` in `guide/` before
-   the build and test verification step.
+2. **Node.js 24 and guide dependencies** — run `npm ci` in `guide/` before the
+   build and test verification step.
 3. **`feature-inventory` installed from the same skills repository** — it is the
    required first step of `sync` and owns inventory drift. Install it from
    [its setup guide](https://github.com/pasemes/skills/blob/main/skills/feature-inventory/SETUP.md),
